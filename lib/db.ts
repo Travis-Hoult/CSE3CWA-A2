@@ -22,3 +22,5 @@ export const sequelize =
         logging: false,
         dialectModule: sqlite3, // <-- key line: avoid dynamic require
       });
+
+      export default sequelize;
