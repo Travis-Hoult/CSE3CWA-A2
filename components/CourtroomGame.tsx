@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import CodingTaskPanel, { type VerdictTrigger } from "./CodingTaskPanel";
 import { tasks as TASKS, type Task, type Category } from "@/lib/courtroom/tasks";
+import OptionsButton from "./OptionsButton";
 
 const MESSAGE_INTERVAL_MS = 28_000;
 const CRITICAL_GRACE_MS = 60_000;
@@ -432,6 +433,7 @@ export default function CourtroomGame() {
         >
           Save Output
         </button>
+        <OptionsButton />
       </div>
     </div>
   );
