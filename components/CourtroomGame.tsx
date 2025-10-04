@@ -5,13 +5,24 @@ import CodingTaskPanel, { type VerdictTrigger } from "./CodingTaskPanel";
 import { tasks as TASKS, type Task, type Category } from "@/lib/courtroom/tasks";
 import OptionsButton from "./OptionsButton";
 
-const MESSAGE_INTERVAL_MS = 28_000;
-const CRITICAL_GRACE_MS = 60_000;
+// Default timings (can be overridden by selected scenario bias)
+const DEFAULT_MESSAGE_INTERVAL_MS = 28_000;
+const DEFAULT_CRITICAL_GRACE_MS = 60_000;
+
+type ScenarioBias = {
+  categories?: Category[];
+  messageIntervalMs?: number;
+  criticalGraceMs?: number;
+};
 
 export default function CourtroomGame() {
   const [gameStarted, setGameStarted] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(40 * 60);
   const [tick, setTick] = useState(0); // global 1s tick
+
+  // Timings that can change per scenario (Lambda-provided bias)
+  const [messageIntervalMs, setMessageIntervalMs] = useState(DEFAULT_MESSAGE_INTERVAL_MS);
+  const [criticalGraceMs, setCriticalGraceMs] = useState(DEFAULT_CRITICAL_GRACE_MS);
 
   // alerts
   const [queue, setQueue] = useState<Task[]>(TASKS);
@@ -35,6 +46,34 @@ export default function CourtroomGame() {
   // audio + run metadata
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const startedAtRef = useRef<string | null>(null);
+
+  // ---- Scenario preview (visible before start and as a header badge) ----
+  const [scenarioTitle, setScenarioTitle] = useState<string | null>(null);
+  const [scenarioMeta, setScenarioMeta] = useState<string | null>(null);
+
+  function refreshScenarioPreview() {
+    try {
+      const raw = localStorage.getItem("cwa.selectedScenario");
+      if (!raw) { setScenarioTitle(null); setScenarioMeta(null); return; }
+      const s = JSON.parse(raw) as {
+        title?: string;
+        verdictCategory?: string;
+        bias?: { categories?: string[]; messageIntervalMs?: number; criticalGraceMs?: number };
+      };
+      setScenarioTitle(s.title || s.verdictCategory || "Custom scenario");
+      const cadence = Math.round(((s.bias?.messageIntervalMs ?? DEFAULT_MESSAGE_INTERVAL_MS) / 1000));
+      const grace   = Math.round(((s.bias?.criticalGraceMs ?? DEFAULT_CRITICAL_GRACE_MS) / 1000));
+      const fav     = (s.bias?.categories && s.bias.categories.length)
+        ? s.bias.categories.join(", ")
+        : (s.verdictCategory ?? "mixed");
+      setScenarioMeta(`Favours: ${fav} · cadence ~${cadence}s · grace ${grace}s`);
+    } catch {
+      setScenarioTitle(null);
+      setScenarioMeta(null);
+    }
+  }
+  useEffect(() => { refreshScenarioPreview(); }, []);
+  // ----------------------------------------------------------------------
 
   function clearAllTimers() {
     if (tickerRef.current)          { window.clearInterval(tickerRef.current); tickerRef.current = null; }
@@ -67,7 +106,6 @@ export default function CourtroomGame() {
     navigatingRef.current = true;
     clearAllTimers();
 
-    // store dynamic verdict for the verdict page
     try {
       sessionStorage.setItem(
         "verdict",
@@ -79,7 +117,6 @@ export default function CourtroomGame() {
       );
     } catch {}
 
-    // record the run
     try {
       await fetch("/api/progress", {
         method: "POST",
@@ -91,9 +128,8 @@ export default function CourtroomGame() {
           notes: "auto: verdict from game",
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch {}
 
-    // play sound, then go to verdict after ~1s
     try {
       const a = audioRef.current;
       if (a) { a.currentTime = 0; await a.play().catch(() => {}); }
@@ -108,6 +144,20 @@ export default function CourtroomGame() {
     triggerVerdict(category as Category, verdict);
   };
 
+  // Helper: bias queue by favored categories; bring one favored critical early if available
+  function buildQueueForScenario(all: Task[], favored?: Category[]) {
+    if (!favored || favored.length === 0) return all;
+    const inFav  = all.filter(t => favored.includes(t.category));
+    const other  = all.filter(t => !favored.includes(t.category));
+    const earlyC = inFav.find(t => t.critical);
+    const restFav = inFav.filter(t => t !== earlyC);
+    return [
+      ...(earlyC ? [earlyC] : []),
+      ...restFav,
+      ...other,
+    ];
+  }
+
   function surfaceNext() {
     if (queue.length === 0) return;
     const [next, ...rest] = queue;
@@ -121,35 +171,36 @@ export default function CourtroomGame() {
       setPenaltyVerdict(next.verdict ?? "You ignored a critical issue.");
       verdictTimeoutRef.current = window.setTimeout(() => {
         verdictTimeoutRef.current = null;
-        triggerVerdict(); // uses stored penaltyCategory/penaltyVerdict
-      }, CRITICAL_GRACE_MS);
+        triggerVerdict();
+      }, criticalGraceMs);
     }
   }
 
-  // Global 1s tick (drives everything)
+  // Global 1s tick
   useEffect(() => {
     if (!gameStarted) return;
     tickerRef.current = window.setInterval(() => {
       setSecondsLeft((s) => Math.max(0, s - 1));
-      setTick((t) => t + 1); // bump tick every second
+      setTick((t) => t + 1);
     }, 1000);
     return () => {
       if (tickerRef.current) { window.clearInterval(tickerRef.current); tickerRef.current = null; }
     };
   }, [gameStarted]);
 
-  // Surface alerts on an interval
+  // Surface alerts on an interval (scenario-adjustable cadence)
   useEffect(() => {
     if (!gameStarted) return;
+    if (messageIntervalRef.current) { window.clearInterval(messageIntervalRef.current); messageIntervalRef.current = null; }
     messageIntervalRef.current = window.setInterval(() => {
       if (queue.length === 0) return;
       surfaceNext();
-    }, MESSAGE_INTERVAL_MS);
+    }, messageIntervalMs);
     return () => {
       if (messageIntervalRef.current) { window.clearInterval(messageIntervalRef.current); messageIntervalRef.current = null; }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameStarted, queue.length]);
+  }, [gameStarted, queue.length, messageIntervalMs]);
 
   useEffect(() => { setCriticalReviewOpen(false); }, [top?.id]);
   useEffect(() => () => { clearAllTimers(); }, []);
@@ -164,9 +215,10 @@ export default function CourtroomGame() {
   const penaltySecondsLeft = useMemo(() => {
     if (penaltyStartAt == null) return null;
     const elapsed = Math.floor((Date.now() - penaltyStartAt) / 1000);
-    const left = 60 - elapsed;
-    return Math.max(0, Math.min(60, left));
-  }, [penaltyStartAt, tick]);
+    const left = Math.floor(criticalGraceMs / 1000) - elapsed;
+    const cap = Math.floor(criticalGraceMs / 1000);
+    return Math.max(0, Math.min(cap, left));
+  }, [penaltyStartAt, tick, criticalGraceMs]);
 
   function popTop() { setStack((s) => s.slice(0, -1)); }
   function onFix() {
@@ -182,11 +234,37 @@ export default function CourtroomGame() {
     setGameStarted(true);
     setSecondsLeft(40 * 60);
     setTick(0);
-    setQueue(TASKS);
+
+    // Read selected scenario (saved by Use Scenario)
+    let bias: ScenarioBias = {};
+    try {
+      const raw = localStorage.getItem("cwa.selectedScenario");
+      if (raw) {
+        const scenario = JSON.parse(raw) as { title?: string; verdictCategory?: string; bias?: ScenarioBias };
+        bias = scenario?.bias ?? {};
+        // Ensure header preview reflects the applied scenario
+        setScenarioTitle(scenario.title || scenario.verdictCategory || "Custom scenario");
+        const cadence = Math.round(((bias.messageIntervalMs ?? DEFAULT_MESSAGE_INTERVAL_MS) / 1000));
+        const grace   = Math.round(((bias.criticalGraceMs ?? DEFAULT_CRITICAL_GRACE_MS) / 1000));
+        const fav     = (bias.categories && bias.categories.length)
+          ? bias.categories.join(", ")
+          : (scenario.verdictCategory ?? "mixed");
+        setScenarioMeta(`Favours: ${fav} · cadence ~${cadence}s · grace ${grace}s`);
+      }
+    } catch {}
+
+    // Apply bias timings (with defaults)
+    setMessageIntervalMs(bias.messageIntervalMs ?? DEFAULT_MESSAGE_INTERVAL_MS);
+    setCriticalGraceMs(bias.criticalGraceMs ?? DEFAULT_CRITICAL_GRACE_MS);
+
+    // Build initial queue with favored categories first
+    const q = buildQueueForScenario(TASKS, bias.categories);
+    setQueue(q);
+
     setStack([]);
     setCriticalReviewOpen(false);
     resetPenalty();
-    startedAtRef.current = new Date().toISOString(); // mark run start
+    startedAtRef.current = new Date().toISOString();
     void primeVerdictSound();
   }
 
@@ -220,7 +298,7 @@ export default function CourtroomGame() {
       {/* preload verdict sound */}
       <audio ref={audioRef} src="/sounds/verdict.mp3" preload="auto" aria-hidden="true" />
 
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <div style={headerBadge}>COURTROOM</div>
         <div
           aria-live="polite"
@@ -234,6 +312,14 @@ export default function CourtroomGame() {
         >
           ⏱ {mmss}
         </div>
+
+        {/* Active scenario badge (when selected) */}
+        {scenarioTitle && (
+          <div style={{ ...headerBadge, fontSize: 12 }}>
+            <div style={{ fontWeight: 900 }}>{scenarioTitle}</div>
+            {scenarioMeta && <div style={{ fontWeight: 500 }}>{scenarioMeta}</div>}
+          </div>
+        )}
       </header>
 
       {/* Center the coding tasks panel on screen */}
@@ -241,7 +327,7 @@ export default function CourtroomGame() {
         <CodingTaskPanel gameStarted={gameStarted} nowTick={tick} onVerdict={onVerdictFromTask} />
       </div>
 
-      {/* Start overlay */}
+      {/* Start overlay (with Generate Options BEFORE start) */}
       {!gameStarted && (
         <section
           aria-label="Start game"
@@ -260,12 +346,44 @@ export default function CourtroomGame() {
               border: "1px solid #ccc",
               borderRadius: 12,
               padding: 24,
-              width: 360,
+              width: 420,
               textAlign: "center",
               boxShadow: "0 12px 24px rgba(0,0,0,0.15)",
             }}
           >
             <h2 style={{ marginTop: 0 }}>Ready to start?</h2>
+
+            <div style={{ margin: "0 0 12px", color: "#333" }}>
+              <div style={{ fontWeight: 800 }}>
+                Scenario: {scenarioTitle ?? "None selected"}
+              </div>
+              <div style={{ fontSize: 12 }}>
+                {scenarioMeta ?? "Pick an option to influence alerts & timings."}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <OptionsButton
+                label="Generate Options"
+                onSelected={() => {
+                  // refresh preview when a scenario is chosen
+                  refreshScenarioPreview();
+                }}
+              />
+              <button
+                onClick={() => { localStorage.removeItem("cwa.selectedScenario"); refreshScenarioPreview(); }}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #aaa",
+                  background: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                Clear Scenario
+              </button>
+            </div>
+
             <p style={{ margin: "8px 0 16px" }}>
               Press start to begin the 40:00 timer and receive messages.
             </p>
@@ -353,7 +471,7 @@ export default function CourtroomGame() {
                     }}
                     title="Open critical review"
                   >
-                    Review critical ({penaltySecondsLeft ?? 60}s)
+                    Review critical ({penaltySecondsLeft ?? Math.floor(criticalGraceMs / 1000)}s)
                   </button>
                 ) : (
                   <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
@@ -398,8 +516,22 @@ export default function CourtroomGame() {
         </div>
       )}
 
-      {/* Save Output (unchanged) */}
-      <div style={{ position: "fixed", bottom: 16, right: 16, zIndex: 10 }}>
+      {/* Bottom-right actions: Save Output + (optional) in-game Generate Options */}
+      <div style={{
+        position: "fixed",
+        bottom: 16,
+        right: 16,
+        zIndex: 10,
+        display: "flex",
+        gap: 8,
+        alignItems: "center",
+        background: "rgba(255,255,255,0.9)",
+        border: "1px solid #ddd",
+        borderRadius: 12,
+        padding: 8,
+        boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+        backdropFilter: "blur(4px)",
+      }}>
         <button
           onClick={async () => {
             const summary = {
@@ -409,6 +541,8 @@ export default function CourtroomGame() {
               started: gameStarted,
               topId: top?.id ?? null,
               criticalCountdown: penaltyStartAt ? penaltySecondsLeft ?? 0 : null,
+              cadenceMs: messageIntervalMs,
+              criticalGraceMs,
             };
             const html = `<!doctype html><html><head><meta charset="utf-8"><title>Snapshot</title></head>
 <body style="font-family:system-ui;padding:16px">
@@ -429,10 +563,13 @@ export default function CourtroomGame() {
             border: "2px solid #111",
             background: "#fff",
             cursor: "pointer",
+            whiteSpace: "nowrap",
           }}
         >
           Save Output
         </button>
+
+        {/* Keep this if you also want access during play; can be removed if you prefer pre-start only */}
         <OptionsButton />
       </div>
     </div>
