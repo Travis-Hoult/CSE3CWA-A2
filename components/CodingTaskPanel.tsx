@@ -14,10 +14,14 @@ export default function CodingTaskPanel({
   gameStarted,
   nowTick,             // ⟵ increments once per second from the parent
   onVerdict,
+  onWin,               // ⟵ NEW: parent can stop main timer when tasks are done
+  onRestart,           // ⟵ NEW: optional parent-controlled restart
 }: {
   gameStarted: boolean;
   nowTick: number;
   onVerdict: VerdictTrigger;
+  onWin?: () => void;
+  onRestart?: () => void;
 }) {
   // which stage (0..2). when it reaches 3, all done.
   const [step, setStep] = useState(0);
@@ -45,7 +49,6 @@ export default function CodingTaskPanel({
     const elapsed = Math.floor((Date.now() - stepStartAt) / 1000);
     const left = 60 - elapsed;
     return Math.max(0, Math.min(60, left));
-    // depend on nowTick to re-run every second
   }, [nowTick, gameStarted, step, stepStartAt]);
 
   // trigger dynamic verdict when time runs out
@@ -57,6 +60,19 @@ export default function CodingTaskPanel({
       onVerdict(meta.category, meta.verdict);
     }
   }, [remain, gameStarted, step, onVerdict]);
+
+  // When all stages complete → notify parent to stop the game timer
+  const allDone = step >= 3;
+  const notifiedWin = useRef(false);
+  useEffect(() => {
+    if (allDone && !notifiedWin.current) {
+      notifiedWin.current = true;
+      onWin?.();
+    }
+    if (!allDone) {
+      notifiedWin.current = false;
+    }
+  }, [allDone, onWin]);
 
   // ── Stage checks ───────────────────────────────────────────────────────────
   // Stage 1: Add alt to #img1
@@ -81,8 +97,6 @@ export default function CodingTaskPanel({
     for (let i = 0; i <= 20; i++) if (String(i) !== parts[i]) return false;
     return true;
   }, [nums]);
-
-  const allDone = step >= 3;
 
   // ── styles ─────────────────────────────────────────────────────────────────
   const card: React.CSSProperties = {
@@ -124,17 +138,32 @@ export default function CodingTaskPanel({
         )}
       </header>
 
-      {/* Completed */}
+      {/* Completed -> WIN SCREEN */}
       {allDone && (
         <section aria-live="polite" style={{ textAlign: "center" }}>
-          <strong style={{ color: "green" }}>✓ All stages complete</strong>
-          <p style={{ marginTop: 8 }}>Great job. Keep handling the incoming alerts to avoid a verdict.</p>
-          <button
-            onClick={() => setStep(0)}
-            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #111", background: "#fff", cursor: "pointer" }}
-          >
-            Restart tasks
-          </button>
+          <strong style={{ color: "green" }}>✓ All stages complete — You win!</strong>
+          <p style={{ marginTop: 8 }}>Nice! You finished all coding tasks before the deadline.</p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button
+              onClick={() => {
+                if (onRestart) onRestart();
+                // local reset so the panel is ready if parent restarts the game
+                setStep(0);
+                setHtml(`<img id="img1" src="/images/example.png">`);
+                setU(""); setP("");
+                setNums("");
+              }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "2px solid #111", background: "#111", color: "#fff", cursor: "pointer" }}
+            >
+              PLAY AGAIN
+            </button>
+            <button
+              onClick={() => { window.location.assign("/"); }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #111", background: "#fff", cursor: "pointer" }}
+            >
+              QUIT
+            </button>
+          </div>
         </section>
       )}
 

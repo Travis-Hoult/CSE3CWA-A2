@@ -1,80 +1,133 @@
-# CSE3CWA / CSE5006 – Assignment 1  
+# CSE3CWA / CSE5006 – Assignment 2
 
-## Project Overview  
-This project is a **front-end web application** built with **Next.js (React + TypeScript)**.  
-It demonstrates the use of:  
-- React components  
-- State management (`useState`, `useEffect`)  
-- Dynamic rendering  
-- Local storage for persistence  
-- Modularised component design  
+## Project Overview
+This project is a **full-stack web application** built with **Next.js (App Router + TypeScript)**.
+It extends the work from Assignment 1 and implements an **interactive courtroom-style simulation game**.
 
-The assignment implements a **tabs builder interface** that allows the user to create, edit, and manage content in a structured way.  
+The application demonstrates:
+- Timed gameplay with dynamic alerts and coding tasks
+- CRUD operations via API routes and a database
+- Optional AWS Lambda integration for generating gameplay scenarios
+- A Dockerised production deployment
 
----
+The project meets the Assignment 2 “Courtroom” option requirements and provides both server- and client-side components that interact through a local SQLite database.
 
-## Tech Stack  
-- **Next.js 14** (React framework)  
-- **TypeScript**  
-- **Bootstrap** (for styling and layout)  
-- **LocalStorage** (to persist state between refreshes)  
+## Tech Stack
+- **Next.js 15** (React + TypeScript App Router)
+- **Sequelize ORM**
+- **SQLite** (local) / **PostgreSQL** (optional for cloud)
+- **AWS Lambda (optional)** for scenario generation
+- **Node 20 Alpine** (for Docker image)
+- **Docker Desktop** (for container build + run)
 
----
+## How to Run the Project
 
-## How to Run the Project  
+### Local Development (no Docker)
+1. Navigate to the project folder:
+   cd cse3cwa-a2
 
-1. Navigate to the project folder:  
-   ```bash
-   cd cse3cwa-a1
-   ```
+2. Install dependencies:
+   npm ci
 
-2. Install dependencies:  
-   ```bash
-   npm install
-   ```
+3. (Optional) Create a .env.local file:
+   LAMBDA_URL=https://gsofeno4d5t25ff24tt2ujecji0hpmja.lambda-url.us-east-1.on.aws/
 
-3. Start the development server:  
-   ```bash
+4. Start the development server:
    npm run dev
-   ```
 
-4. Open in your browser:  
-   ```
+5. Open in your browser:
    http://localhost:3000
-   ```
 
----
+## Docker Deployment
+### Build the container
+docker build -t cse3cwa-a2:local .
 
-## Features and Assignment Requirements  
+### To Run Docker Local Variable command
+Run locally (no Lambda, default SQLite):
+docker run --rm -p 3000:3000 cse3cwa-a2:local
 
-The following table shows how the assignment requirements have been met in this project:  
+### Persist the database between runs
+docker run --rm -p 3000:3000 -v "$PWD/data.sqlite:/app/data.sqlite" cse3cwa-a2:local
 
+### Use the demo Lambda Function command
+docker run -p 3000:3000 -e LAMBDA_URL="https://gsofeno4d5t25ff24tt2ujecji0hpmja.lambda-url.us-east-1.on.aws/" cse3cwa-a2:local
+
+To disable Lambda, simply omit the -e LAMBDA_URL environment variable.
+
+## Features and Assignment Requirements
 | Requirement | Implementation |
-|-------------|----------------|
-| **User Interface** (Nav Bar, Header, Footer, About Page) | Implemented: `Menu.tsx` (Hamburger Navigation Bar), `Header.tsx`, `Footer.tsx`, and an `About` page with project details. |
-| **Themes** (Dark/Light mode) | Implemented using a `ThemeToggle.tsx` component. Users can switch between Dark Mode and Light Mode. |
-| **Hamburger/Kebab Menu with CSS Transform** | Implemented as `Menu.tsx` (Hamburger Menu). Includes CSS transitions and transforms for open/close animation. |
-| **Tabs Page (Operations)** | `TabsBuilder.tsx` allows: up to 15 tabs, tab headings to be renamed, content to be updated, and tabs persisted in `localStorage`. |
-| **Output Button** | An `OutputButton.tsx` generates inline-only HTML + CSS output that can be pasted into a standalone HTML file. Matches the examples demonstrated in lectures. |
-| **GitHub** | Several commits made across development. Feature branches created (e.g., `hamburger-menu`). `node_modules` excluded via `.gitignore`. `README.md` updated and includes AI Acknowledgement. |
+|--------------|----------------|
+| **Game Interface / Courtroom Scenario** | Implemented in CourtroomGame.tsx – 40 min timer, alerts, critical and non-critical events. |
+| **Coding Tasks (3 Stages)** | CodingTaskPanel.tsx includes HTML accessibility, login validation, and CSV sequence tasks with individual 60 s timers. |
+| **Verdict System** | When time or a critical alert expires, a verdict sound and message are shown (verdict/page.tsx). |
+| **Win Condition** | Completing all three tasks triggers a win message and offers Play Again / Quit options. |
+| **Scenario Options / AWS Lambda Integration** | OptionsButton.tsx and /api/options fetch alert bias options locally or from Lambda. |
+| **Database / API CRUD** | Implemented with Sequelize model Progress.ts and API routes (/api/progress, /api/output). |
+| **Dockerised Deployment** | Multi-stage Dockerfile uses Node 20 Alpine for build and runtime stages. |
+| **Testing / Health** | Health endpoint (/api/health) and optional Playwright tests supported. |
 
----
+## Database
+- **Local:** SQLite (data.sqlite) created automatically in the container or working directory.
+- **Cloud optional:** Set DATABASE_URL (PostgreSQL) to use cloud database.
 
-## AI Acknowledgement  
+**Tables:**
+- Progress – Tracks game runs (startedAt, finishedAt, verdictCategory, notes)
+- Output – Stores “Save Output” HTML snapshots and JSON summaries
 
-Artificial Intelligence (AI) tools were used throughout the development of this assignment **as a learning assistant**.  
-The use of AI was limited to support the **understanding and application of coding concepts** and to provide guidance where I was stuck.  
+SQLite meets the minimum database requirement for Assignment 2.
 
-Specifically, AI was used for:  
-- **Code Correction and Editing** – reviewing and suggesting improvements for syntax, structure, and React/Next.js best practices.  
-- **Assignment Planning and Scheduling** – breaking down tasks and deliverables into manageable steps.  
-- **Formatting and Commenting Consistency and Clarity** – making the codebase and documentation easier to read.  
-- **Concept Development** – discussing possible approaches to features (e.g. tabs builder, state handling, output handling).  
-- **Tracking of Deliverables** – ensuring progress was aligned with assignment requirements and deadlines.  
+## Game Flow
+1. Player selects a scenario (optionally from Lambda).
+2. Clicking Start begins the 40 minute game and periodic alerts.
+3. Three coding tasks must be completed before time runs out.
+4. Ignoring a critical alert or failing a task triggers a verdict.
+5. Completing all tasks before time expires results in a win state with Play Again / Quit options.
+6. Verdicts and snapshots are saved through API calls to /api/progress and /api/output.
 
-AI was **not used to generate the entire solution**. All final design decisions, code implementation, testing, and submission are my own work. AI supported my **learning process**, similar to a tutor or peer mentor, by providing suggestions and clarifications.  
+## Key Files
+| File | Purpose |
+|------|----------|
+| components/CourtroomGame.tsx | Manages timer, alerts, and scenario selection logic. |
+| components/CodingTaskPanel.tsx | Implements three coding stages with validation and progress. |
+| components/OptionsButton.tsx | Displays Generate Options modal (local or Lambda bias). |
+| lib/db.ts | Sets up Sequelize for SQLite or Postgres. |
+| app/api/* | CRUD endpoints for progress and output. |
+| app/courtroom/verdict/page.tsx | Verdict screen with sound and Play Again link. |
 
----
+## APIs
+- GET /api/options → Returns local or Lambda scenarios.
+- POST /api/progress → Records completed or failed runs.
+- GET / PUT / DELETE /api/progress/[id] → Full CRUD for run records.
+- POST /api/output → Saves game snapshot.
 
-## License  
-This project is for **educational purposes only** as part of CSE3CWA / CSE5006 coursework.  
+Optional: /api/options?diag=1 to view diagnostics (lambda fetch status and source).
+
+## Testing & Health
+- Health check endpoint:
+  GET /api/health → { "ok": true }
+- Add Playwright tests to simulate game scenarios.
+- Run Lighthouse audit on /courtroom for accessibility and performance evidence.
+
+## Troubleshooting
+| Issue | Fix |
+|--------|-----|
+| **ESLint warnings on build** | Non-blocking; adjust .eslintrc if needed. |
+| **sqlite3 module missing** | Run npm ci to rebuild native bindings. |
+| **source: fallback in options** | Lambda not reachable → check LAMBDA_URL. |
+| **Persist database in Docker** | Add -v "$PWD/data.sqlite:/app/data.sqlite". |
+| **Play Again button not working** | Fixed in verdict/page.tsx – uses window.location.assign("/courtroom"). |
+
+## AI Acknowledgement
+Artificial Intelligence (AI) tools were used as a learning assistant throughout the development of this assignment.
+
+AI was used to:
+- Support code correction and editing
+- Plan and schedule project tasks
+- Maintain formatting and commenting consistency
+- Clarify Next.js concepts and TypeScript use
+- Track deliverables and feature branch management
+
+AI was not used to generate the entire solution. All final design decisions, implementation, testing, and submission are my own work. AI acted as a tutor-style assistant to aid learning and understanding.
+
+## License
+This project is for educational purposes only as part of CSE3CWA / CSE5006 coursework.
