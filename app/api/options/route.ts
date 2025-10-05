@@ -5,6 +5,15 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { BASE_OPTIONS } from "@/lib/courtroom/options";
 
+type LambdaPayload = {
+  options?: unknown;
+};
+
+// Type guard: ensure payload.options is an array
+function isOptionArray(x: unknown): x is unknown[] {
+  return Array.isArray(x);
+}
+
 export async function GET(request: Request) {
   const url = process.env.LAMBDA_URL?.trim();
   const diag = new URL(request.url).searchParams.get("diag") === "1";
@@ -13,7 +22,7 @@ export async function GET(request: Request) {
   const baseHeaders = {
     "Cache-Control": "no-store",
     "Content-Type": "application/json",
-  };
+  } as const;
 
   // If no env var, it's definitively "local"
   if (!url) {
@@ -24,9 +33,9 @@ export async function GET(request: Request) {
         ...(diag && {
           diagnostics: {
             lambdaEnvPresent: false,
-            usedUrl: null,
-            fetchOk: null,
-            status: null,
+            usedUrl: null as string | null,
+            fetchOk: null as boolean | null,
+            status: null as number | null,
           },
         }),
       },
@@ -36,10 +45,11 @@ export async function GET(request: Request) {
 
   // Try Lambda with a short timeout
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), 4000);
+  const timer = setTimeout(() => controller.abort(), 4000);
 
   let fetchOk = false;
   let status: number | null = null;
+
   try {
     const r = await fetch(url, {
       method: "POST",
@@ -48,16 +58,23 @@ export async function GET(request: Request) {
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
-    clearTimeout(t);
     status = r.status;
-    const data = await r.json().catch(() => ({} as any));
-    const options = Array.isArray(data?.options) ? data.options : null;
+
+    // Safely parse JSON without `any`
+    let data: LambdaPayload | null = null;
+    try {
+      data = (await r.json()) as LambdaPayload;
+    } catch {
+      data = null;
+    }
+
+    const options = data && isOptionArray(data.options) ? (data.options as unknown[]) : null;
 
     if (r.ok && options) {
       fetchOk = true;
       return new NextResponse(
         JSON.stringify({
-          source: "lambda",
+          source: "lambda" as const,
           options,
           ...(diag && {
             diagnostics: {
@@ -72,13 +89,15 @@ export async function GET(request: Request) {
       );
     }
   } catch {
-    clearTimeout(t);
+    // swallow — fall back below
+  } finally {
+    clearTimeout(timer);
   }
 
   // Fallback
   return new NextResponse(
     JSON.stringify({
-      source: "fallback",
+      source: "fallback" as const,
       options: BASE_OPTIONS,
       ...(diag && {
         diagnostics: {

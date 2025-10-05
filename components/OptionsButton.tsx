@@ -28,13 +28,14 @@ export default function OptionsButton({
       const json: Payload = await r.json();
       setData(json);
       setOpen(true);
-    } catch (e: any) {
-      setErr(e?.message ?? "Failed to load options");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to load options";
+      setErr(msg);
       setOpen(true);
     }
   }
 
-  function useScenario(opt: Option) {
+  function selectScenario(opt: Option) {
     try {
       localStorage.setItem("cwa.selectedScenario", JSON.stringify(opt));
     } catch {}
@@ -59,6 +60,7 @@ export default function OptionsButton({
       }}
     >
       <div
+        className="options-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(92vw, 680px)",
@@ -97,13 +99,13 @@ export default function OptionsButton({
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
                   <button
-                    onClick={() => useScenario(o)}
+                    onClick={() => selectScenario(o)}
                     style={{
                       padding: "8px 12px",
                       borderRadius: 8,
-                      border: "2px solid #111",
-                      background: "#111",
-                      color: "#fff",
+                      border: "2px solid #444",
+                      background: "#ccc",
+                      color: "#000",
                       cursor: "pointer",
                     }}
                   >

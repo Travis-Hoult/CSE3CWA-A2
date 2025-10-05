@@ -1,8 +1,13 @@
 // components/CourtroomGame.tsx
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import CodingTaskPanel, { type VerdictTrigger } from "./CodingTaskPanel";
-import { tasks as TASKS, type Task, type Category } from "@/lib/courtroom/tasks";
+import {
+  tasks as TASKS,
+  type Task,
+  type Category,
+} from "@/lib/courtroom/tasks";
 import OptionsButton from "./OptionsButton";
 
 // Default timings (can be overridden by selected scenario bias)
@@ -22,8 +27,12 @@ export default function CourtroomGame() {
   const [tick, setTick] = useState(0); // global 1s tick
 
   // Timings that can change per scenario (Lambda-provided bias)
-  const [messageIntervalMs, setMessageIntervalMs] = useState(DEFAULT_MESSAGE_INTERVAL_MS);
-  const [criticalGraceMs, setCriticalGraceMs] = useState(DEFAULT_CRITICAL_GRACE_MS);
+  const [messageIntervalMs, setMessageIntervalMs] = useState(
+    DEFAULT_MESSAGE_INTERVAL_MS
+  );
+  const [criticalGraceMs, setCriticalGraceMs] = useState(
+    DEFAULT_CRITICAL_GRACE_MS
+  );
 
   // alerts
   const [queue, setQueue] = useState<Task[]>(TASKS);
@@ -55,25 +64,42 @@ export default function CourtroomGame() {
   function refreshScenarioPreview() {
     try {
       const raw = localStorage.getItem("cwa.selectedScenario");
-      if (!raw) { setScenarioTitle(null); setScenarioMeta(null); return; }
+      if (!raw) {
+        setScenarioTitle(null);
+        setScenarioMeta(null);
+        return;
+      }
       const s = JSON.parse(raw) as {
         title?: string;
         verdictCategory?: string;
-        bias?: { categories?: string[]; messageIntervalMs?: number; criticalGraceMs?: number };
+        bias?: {
+          categories?: string[];
+          messageIntervalMs?: number;
+          criticalGraceMs?: number;
+        };
       };
       setScenarioTitle(s.title || s.verdictCategory || "Custom scenario");
-      const cadence = Math.round(((s.bias?.messageIntervalMs ?? DEFAULT_MESSAGE_INTERVAL_MS) / 1000));
-      const grace   = Math.round(((s.bias?.criticalGraceMs ?? DEFAULT_CRITICAL_GRACE_MS) / 1000));
-      const fav     = (s.bias?.categories && s.bias.categories.length)
-        ? s.bias.categories.join(", ")
-        : (s.verdictCategory ?? "mixed");
-      setScenarioMeta(`Favours: ${fav} · cadence ~${cadence}s · grace ${grace}s`);
+      const cadence = Math.round(
+        (s.bias?.messageIntervalMs ?? DEFAULT_MESSAGE_INTERVAL_MS) / 1000
+      );
+      const grace = Math.round(
+        (s.bias?.criticalGraceMs ?? DEFAULT_CRITICAL_GRACE_MS) / 1000
+      );
+      const fav =
+        s.bias?.categories && s.bias.categories.length
+          ? s.bias.categories.join(", ")
+          : s.verdictCategory ?? "mixed";
+      setScenarioMeta(
+        `Favours: ${fav} · cadence ~${cadence}s · grace ${grace}s`
+      );
     } catch {
       setScenarioTitle(null);
       setScenarioMeta(null);
     }
   }
-  useEffect(() => { refreshScenarioPreview(); }, []);
+  useEffect(() => {
+    refreshScenarioPreview();
+  }, []);
 
   // Allow ESC to close the start box (without starting the game)
   useEffect(() => {
@@ -87,16 +113,28 @@ export default function CourtroomGame() {
   }, [gameStarted, showStartOverlay]);
 
   function clearAllTimers() {
-    if (tickerRef.current)          { window.clearInterval(tickerRef.current); tickerRef.current = null; }
-    if (messageIntervalRef.current) { window.clearInterval(messageIntervalRef.current); messageIntervalRef.current = null; }
-    if (verdictTimeoutRef.current)  { window.clearTimeout(verdictTimeoutRef.current); verdictTimeoutRef.current = null; }
+    if (tickerRef.current) {
+      window.clearInterval(tickerRef.current);
+      tickerRef.current = null;
+    }
+    if (messageIntervalRef.current) {
+      window.clearInterval(messageIntervalRef.current);
+      messageIntervalRef.current = null;
+    }
+    if (verdictTimeoutRef.current) {
+      window.clearTimeout(verdictTimeoutRef.current);
+      verdictTimeoutRef.current = null;
+    }
   }
   function resetPenalty() {
     setPenaltyStartAt(null);
     setPenaltyTaskId(null);
     setPenaltyCategory(null);
     setPenaltyVerdict(null);
-    if (verdictTimeoutRef.current) { window.clearTimeout(verdictTimeoutRef.current); verdictTimeoutRef.current = null; }
+    if (verdictTimeoutRef.current) {
+      window.clearTimeout(verdictTimeoutRef.current);
+      verdictTimeoutRef.current = null;
+    }
   }
 
   async function primeVerdictSound() {
@@ -112,7 +150,10 @@ export default function CourtroomGame() {
   }
 
   // Centralized verdict: record run, play sound, wait 1s, navigate
-  async function triggerVerdict(category?: Category | string | null, verdict?: string | null) {
+  async function triggerVerdict(
+    category?: Category | string | null,
+    verdict?: string | null
+  ) {
     if (navigatingRef.current) return;
     navigatingRef.current = true;
     clearAllTimers();
@@ -143,7 +184,10 @@ export default function CourtroomGame() {
 
     try {
       const a = audioRef.current;
-      if (a) { a.currentTime = 0; await a.play().catch(() => {}); }
+      if (a) {
+        a.currentTime = 0;
+        await a.play().catch(() => {});
+      }
     } catch {}
 
     window.setTimeout(() => {
@@ -158,15 +202,11 @@ export default function CourtroomGame() {
   // Helper: bias queue by favored categories; bring one favored critical early if available
   function buildQueueForScenario(all: Task[], favored?: Category[]) {
     if (!favored || favored.length === 0) return all;
-    const inFav  = all.filter(t => favored.includes(t.category));
-    const other  = all.filter(t => !favored.includes(t.category));
-    const earlyC = inFav.find(t => t.critical);
-    const restFav = inFav.filter(t => t !== earlyC);
-    return [
-      ...(earlyC ? [earlyC] : []),
-      ...restFav,
-      ...other,
-    ];
+    const inFav = all.filter((t) => favored.includes(t.category));
+    const other = all.filter((t) => !favored.includes(t.category));
+    const earlyC = inFav.find((t) => t.critical);
+    const restFav = inFav.filter((t) => t !== earlyC);
+    return [...(earlyC ? [earlyC] : []), ...restFav, ...other];
   }
 
   function surfaceNext() {
@@ -195,26 +235,42 @@ export default function CourtroomGame() {
       setTick((t) => t + 1);
     }, 1000);
     return () => {
-      if (tickerRef.current) { window.clearInterval(tickerRef.current); tickerRef.current = null; }
+      if (tickerRef.current) {
+        window.clearInterval(tickerRef.current);
+        tickerRef.current = null;
+      }
     };
   }, [gameStarted]);
 
   // Surface alerts on an interval (scenario-adjustable cadence)
   useEffect(() => {
     if (!gameStarted) return;
-    if (messageIntervalRef.current) { window.clearInterval(messageIntervalRef.current); messageIntervalRef.current = null; }
+    if (messageIntervalRef.current) {
+      window.clearInterval(messageIntervalRef.current);
+      messageIntervalRef.current = null;
+    }
     messageIntervalRef.current = window.setInterval(() => {
       if (queue.length === 0) return;
       surfaceNext();
     }, messageIntervalMs);
     return () => {
-      if (messageIntervalRef.current) { window.clearInterval(messageIntervalRef.current); messageIntervalRef.current = null; }
+      if (messageIntervalRef.current) {
+        window.clearInterval(messageIntervalRef.current);
+        messageIntervalRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameStarted, queue.length, messageIntervalMs]);
 
-  useEffect(() => { setCriticalReviewOpen(false); }, [top?.id]);
-  useEffect(() => () => { clearAllTimers(); }, []);
+  useEffect(() => {
+    setCriticalReviewOpen(false);
+  }, [top?.id]);
+  useEffect(
+    () => () => {
+      clearAllTimers();
+    },
+    []
+  );
 
   const mmss = useMemo(() => {
     const m = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
@@ -231,14 +287,25 @@ export default function CourtroomGame() {
     return Math.max(0, Math.min(cap, left));
   }, [penaltyStartAt, tick, criticalGraceMs]);
 
-  function popTop() { setStack((s) => s.slice(0, -1)); }
+  function popTop() {
+    setStack((s) => s.slice(0, -1));
+  }
   function onFix() {
     if (top?.id && top.id === penaltyTaskId) resetPenalty();
     popTop();
   }
-  function onSnooze() { if (top && !top.critical) { setQueue((q) => [...q, top]); popTop(); } }
-  function onIgnoreNonCritical() { popTop(); }
-  function onIgnoreCritical() { triggerVerdict(); }
+  function onSnooze() {
+    if (top && !top.critical) {
+      setQueue((q) => [...q, top]);
+      popTop();
+    }
+  }
+  function onIgnoreNonCritical() {
+    popTop();
+  }
+  function onIgnoreCritical() {
+    triggerVerdict();
+  }
 
   function startGame() {
     navigatingRef.current = false;
@@ -252,16 +319,29 @@ export default function CourtroomGame() {
     try {
       const raw = localStorage.getItem("cwa.selectedScenario");
       if (raw) {
-        const scenario = JSON.parse(raw) as { title?: string; verdictCategory?: string; bias?: ScenarioBias };
+        const scenario = JSON.parse(raw) as {
+          title?: string;
+          verdictCategory?: string;
+          bias?: ScenarioBias;
+        };
         bias = scenario?.bias ?? {};
         // Ensure header preview reflects the applied scenario
-        setScenarioTitle(scenario.title || scenario.verdictCategory || "Custom scenario");
-        const cadence = Math.round(((bias.messageIntervalMs ?? DEFAULT_MESSAGE_INTERVAL_MS) / 1000));
-        const grace   = Math.round(((bias.criticalGraceMs ?? DEFAULT_CRITICAL_GRACE_MS) / 1000));
-        const fav     = (bias.categories && bias.categories.length)
-          ? bias.categories.join(", ")
-          : (scenario.verdictCategory ?? "mixed");
-        setScenarioMeta(`Favours: ${fav} · cadence ~${cadence}s · grace ${grace}s`);
+        setScenarioTitle(
+          scenario.title || scenario.verdictCategory || "Custom scenario"
+        );
+        const cadence = Math.round(
+          (bias.messageIntervalMs ?? DEFAULT_MESSAGE_INTERVAL_MS) / 1000
+        );
+        const grace = Math.round(
+          (bias.criticalGraceMs ?? DEFAULT_CRITICAL_GRACE_MS) / 1000
+        );
+        const fav =
+          bias.categories && bias.categories.length
+            ? bias.categories.join(", ")
+            : scenario.verdictCategory ?? "mixed";
+        setScenarioMeta(
+          `Favours: ${fav} · cadence ~${cadence}s · grace ${grace}s`
+        );
       }
     } catch {}
 
@@ -315,14 +395,27 @@ export default function CourtroomGame() {
             .options-modal, .options-modal * {
               color: #000 !important;
             }
-          `
+          `,
         }}
       />
 
       {/* preload verdict sound */}
-      <audio ref={audioRef} src="/sounds/verdict.mp3" preload="auto" aria-hidden="true" />
+      <audio
+        ref={audioRef}
+        src="/sounds/verdict.mp3"
+        preload="auto"
+        aria-hidden="true"
+      />
 
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
         <div style={headerBadge}>COURTROOM</div>
         <div
           aria-live="polite"
@@ -341,7 +434,9 @@ export default function CourtroomGame() {
         {scenarioTitle && (
           <div style={{ ...headerBadge, fontSize: 12 }}>
             <div style={{ fontWeight: 900 }}>{scenarioTitle}</div>
-            {scenarioMeta && <div style={{ fontWeight: 500 }}>{scenarioMeta}</div>}
+            {scenarioMeta && (
+              <div style={{ fontWeight: 500 }}>{scenarioMeta}</div>
+            )}
           </div>
         )}
 
@@ -366,7 +461,19 @@ export default function CourtroomGame() {
 
       {/* Center the coding tasks panel on screen */}
       <div style={{ display: "grid", placeItems: "center" }}>
-        <CodingTaskPanel gameStarted={gameStarted} nowTick={tick} onVerdict={onVerdictFromTask} />
+        <CodingTaskPanel
+          gameStarted={gameStarted}
+          nowTick={tick}
+          onVerdict={onVerdictFromTask}
+          onWin={() => {
+            // Stop the main countdown/alerts when tasks are finished
+            setGameStarted(false);
+          }}
+          onRestart={() => {
+            // Optional: re-show the start screen so the player can pick options again
+            setShowStartOverlay(true);
+          }}
+        />
       </div>
 
       {/* Start screen: perfectly centered over the viewport, non-blocking */}
@@ -375,11 +482,11 @@ export default function CourtroomGame() {
           aria-hidden={false}
           style={{
             position: "fixed",
-            inset: 0,                 // full viewport
+            inset: 0, // full viewport
             display: "grid",
-            placeItems: "center",     // center horizontally & vertically
-            zIndex: 15,
-            pointerEvents: "none",    // don't block clicks outside the box
+            placeItems: "center", // center horizontally & vertically
+            zIndex: 1000,
+            pointerEvents: "none", // don't block clicks outside the box
           }}
         >
           <div
@@ -387,13 +494,13 @@ export default function CourtroomGame() {
             aria-label="Start game"
             // Force light theme styling here (black text) so it stays readable even in dark mode
             style={{
-              pointerEvents: "auto",  // the box itself is interactive
+              pointerEvents: "auto", // the box itself is interactive
               width: 420,
               maxWidth: "92vw",
               maxHeight: "80vh",
               overflow: "auto",
-              background: "#fff",     // pure white
-              color: "#000",          // force black text
+              background: "#fff", // pure white
+              color: "#000", // force black text
               border: "1px solid #ccc",
               borderRadius: 12,
               padding: 24,
@@ -402,8 +509,15 @@ export default function CourtroomGame() {
             }}
           >
             {/* Box controls in the top-right corner of the box */}
-            <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 8 }}>
-              <a
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
+              <Link
                 href="/"
                 style={{
                   padding: "6px 10px",
@@ -411,10 +525,11 @@ export default function CourtroomGame() {
                   border: "1px solid #aaa",
                   background: "#fff",
                   color: "#000",
+                  textDecoration: "none",
                 }}
               >
                 ← Back to site
-              </a>
+              </Link>
               <button
                 onClick={() => setShowStartOverlay(false)}
                 aria-label="Close start screen"
@@ -439,16 +554,31 @@ export default function CourtroomGame() {
                 Scenario: {scenarioTitle ?? "None selected"}
               </div>
               <div style={{ fontSize: 12 }}>
-                {scenarioMeta ?? "Pick an option to influence alerts & timings."}
+                {scenarioMeta ??
+                  "Pick an option to influence alerts & timings."}
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 8,
+                marginBottom: 12,
+                flexWrap: "wrap",
+              }}
+            >
               {/* The modal opened by OptionsButton should use a container class "options-modal"
                   so our <style> override above keeps it black-on-white even in dark mode. */}
-              <OptionsButton label="Generate Options" onSelected={() => refreshScenarioPreview()} />
+              <OptionsButton
+                label="Generate Options"
+                onSelected={() => refreshScenarioPreview()}
+              />
               <button
-                onClick={() => { localStorage.removeItem("cwa.selectedScenario"); refreshScenarioPreview(); }}
+                onClick={() => {
+                  localStorage.removeItem("cwa.selectedScenario");
+                  refreshScenarioPreview();
+                }}
                 style={{
                   padding: "10px 12px",
                   borderRadius: 8,
@@ -525,7 +655,8 @@ export default function CourtroomGame() {
 
             {stack.length > 1 && (
               <div style={{ marginBottom: 10, color: "#666", fontSize: 13 }}>
-                +{stack.length - 1} more alert{stack.length - 1 > 1 ? "s" : ""} queued
+                +{stack.length - 1} more alert{stack.length - 1 > 1 ? "s" : ""}{" "}
+                queued
               </div>
             )}
 
@@ -549,19 +680,36 @@ export default function CourtroomGame() {
                     }}
                     title="Open critical review"
                   >
-                    Review critical ({penaltySecondsLeft ?? Math.floor(criticalGraceMs / 1000)}s)
+                    Review critical (
+                    {penaltySecondsLeft ?? Math.floor(criticalGraceMs / 1000)}s)
                   </button>
                 ) : (
-                  <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      justifyContent: "center",
+                    }}
+                  >
                     <button
                       onClick={onFix}
-                      style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #111", background: "#fff" }}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #111",
+                        background: "#fff",
+                      }}
                     >
                       Fix
                     </button>
                     <button
                       onClick={onIgnoreCritical}
-                      style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #aaa", background: "#fff" }}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #aaa",
+                        background: "#fff",
+                      }}
                     >
                       Ignore
                     </button>
@@ -569,22 +717,39 @@ export default function CourtroomGame() {
                 )}
               </>
             ) : (
-              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <div
+                style={{ display: "flex", gap: 8, justifyContent: "center" }}
+              >
                 <button
                   onClick={onFix}
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #111", background: "#fff" }}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #111",
+                    background: "#fff",
+                  }}
                 >
                   Fix
                 </button>
                 <button
                   onClick={onSnooze}
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #777", background: "#f5f5f5" }}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #777",
+                    background: "#f5f5f5",
+                  }}
                 >
                   Snooze
                 </button>
                 <button
                   onClick={onIgnoreNonCritical}
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #aaa", background: "#fff" }}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #aaa",
+                    background: "#fff",
+                  }}
                 >
                   Ignore
                 </button>
@@ -595,21 +760,23 @@ export default function CourtroomGame() {
       )}
 
       {/* Bottom-right actions: Save Output + (optional) in-game Generate Options */}
-      <div style={{
-        position: "fixed",
-        bottom: 16,
-        right: 16,
-        zIndex: 10,
-        display: "flex",
-        gap: 8,
-        alignItems: "center",
-        background: "rgba(255,255,255,0.9)",
-        border: "1px solid #ddd",
-        borderRadius: 12,
-        padding: 8,
-        boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
-        backdropFilter: "blur(4px)",
-      }}>
+      <div
+        style={{
+          position: "fixed",
+          bottom: 16,
+          right: 16,
+          zIndex: 10,
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          background: "rgba(255,255,255,0.9)",
+          border: "1px solid #ddd",
+          borderRadius: 12,
+          padding: 8,
+          boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+          backdropFilter: "blur(4px)",
+        }}
+      >
         <button
           onClick={async () => {
             const summary = {
@@ -618,7 +785,9 @@ export default function CourtroomGame() {
               stackCount: stack.length,
               started: gameStarted,
               topId: top?.id ?? null,
-              criticalCountdown: penaltyStartAt ? penaltySecondsLeft ?? 0 : null,
+              criticalCountdown: penaltyStartAt
+                ? penaltySecondsLeft ?? 0
+                : null,
               cadenceMs: messageIntervalMs,
               criticalGraceMs,
             };
@@ -646,7 +815,6 @@ export default function CourtroomGame() {
         >
           Save Output
         </button>
-
       </div>
     </div>
   );
