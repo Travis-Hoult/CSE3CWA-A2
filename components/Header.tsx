@@ -69,13 +69,14 @@ export default function Header() {
 
       {/* App title */}
       <div style={titleRow}>
-        <div style={title}>CSE3CWA — Assignment 1</div>
+        <div style={title}>CSE3CWA — Assignment 2 - Courtroom</div>
       </div>
 
       {/* Nav links and controls */}
       <div style={navBar}>
         <nav style={navLinks}>
           <Link href="/">Tabs</Link>
+          <Link href="/courtroom">Courtroom</Link>
           <Link href="/prelab">Pre-lab Questions</Link>
           <Link href="/escape">Escape Room</Link>
           <Link href="/races">Coding Races</Link>

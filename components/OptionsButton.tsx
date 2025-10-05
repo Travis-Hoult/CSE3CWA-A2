@@ -67,6 +67,8 @@ export default function OptionsButton({
           borderRadius: 16,
           padding: 16,
           boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+          // Force all text inside the modal to render black, regardless of theme
+          color: "#000",
         }}
       >
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
@@ -87,7 +89,7 @@ export default function OptionsButton({
                   </span>
                 </div>
                 <p style={{ margin: "8px 0 10px" }}>{o.text}</p>
-                <ul style={{ margin: 0, paddingLeft: 18, color: "#333" }}>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
                   <li>Favours: <strong>{o.bias?.categories?.join(", ") || o.verdictCategory}</strong></li>
                   <li>Alert cadence: <strong>~{Math.round((o.bias?.messageIntervalMs ?? 28_000)/1000)}s</strong></li>
                   <li>Critical grace: <strong>{Math.round((o.bias?.criticalGraceMs ?? 60_000)/1000)}s</strong></li>
@@ -110,7 +112,14 @@ export default function OptionsButton({
 
                   <a
                     href={`/courtroom/option/${o.id}`}
-                    style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #111", background: "#fff" }}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #111",
+                      background: "#fff",
+                      // ensure link text is black even if global theme flips links
+                      color: "#000",
+                    }}
                   >
                     Open Page
                   </a>
@@ -124,7 +133,13 @@ export default function OptionsButton({
                         alert("Copy failed—please copy manually.");
                       }
                     }}
-                    style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #777", background: "#f5f5f5", cursor: "pointer" }}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: "1px solid #777",
+                      background: "#f5f5f5",
+                      cursor: "pointer",
+                    }}
                   >
                     Copy JSON
                   </button>

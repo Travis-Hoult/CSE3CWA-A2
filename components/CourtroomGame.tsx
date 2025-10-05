@@ -17,6 +17,7 @@ type ScenarioBias = {
 
 export default function CourtroomGame() {
   const [gameStarted, setGameStarted] = useState(false);
+  const [showStartOverlay, setShowStartOverlay] = useState(true); // start box on first load
   const [secondsLeft, setSecondsLeft] = useState(40 * 60);
   const [tick, setTick] = useState(0); // global 1s tick
 
@@ -73,7 +74,17 @@ export default function CourtroomGame() {
     }
   }
   useEffect(() => { refreshScenarioPreview(); }, []);
-  // ----------------------------------------------------------------------
+
+  // Allow ESC to close the start box (without starting the game)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!gameStarted && showStartOverlay && e.key === "Escape") {
+        setShowStartOverlay(false);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [gameStarted, showStartOverlay]);
 
   function clearAllTimers() {
     if (tickerRef.current)          { window.clearInterval(tickerRef.current); tickerRef.current = null; }
@@ -171,7 +182,7 @@ export default function CourtroomGame() {
       setPenaltyVerdict(next.verdict ?? "You ignored a critical issue.");
       verdictTimeoutRef.current = window.setTimeout(() => {
         verdictTimeoutRef.current = null;
-        triggerVerdict();
+        triggerVerdict(); // uses stored penaltyCategory/penaltyVerdict
       }, criticalGraceMs);
     }
   }
@@ -232,6 +243,7 @@ export default function CourtroomGame() {
   function startGame() {
     navigatingRef.current = false;
     setGameStarted(true);
+    setShowStartOverlay(false); // hide the box when starting
     setSecondsLeft(40 * 60);
     setTick(0);
 
@@ -264,7 +276,7 @@ export default function CourtroomGame() {
     setStack([]);
     setCriticalReviewOpen(false);
     resetPenalty();
-    startedAtRef.current = new Date().toISOString();
+    startedAtRef.current = new Date().toISOString(); // mark run start
     void primeVerdictSound();
   }
 
@@ -295,6 +307,18 @@ export default function CourtroomGame() {
       }}
       aria-label="Courtroom scenario"
     >
+      {/* Force light text for the Generate Options modal if it uses .options-modal container */}
+      <style
+        // Safe, local override so the options screen stays black-on-white even in dark mode
+        dangerouslySetInnerHTML={{
+          __html: `
+            .options-modal, .options-modal * {
+              color: #000 !important;
+            }
+          `
+        }}
+      />
+
       {/* preload verdict sound */}
       <audio ref={audioRef} src="/sounds/verdict.mp3" preload="auto" aria-hidden="true" />
 
@@ -320,6 +344,24 @@ export default function CourtroomGame() {
             {scenarioMeta && <div style={{ fontWeight: 500 }}>{scenarioMeta}</div>}
           </div>
         )}
+
+        {/* When the start box is hidden and game hasn't started, show a quick "Show Start Screen" button */}
+        {!gameStarted && !showStartOverlay && (
+          <button
+            onClick={() => setShowStartOverlay(true)}
+            title="Show Start Screen"
+            style={{
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "1px solid #111",
+              background: "#fff",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            Show Start Screen
+          </button>
+        )}
       </header>
 
       {/* Center the coding tasks panel on screen */}
@@ -327,33 +369,72 @@ export default function CourtroomGame() {
         <CodingTaskPanel gameStarted={gameStarted} nowTick={tick} onVerdict={onVerdictFromTask} />
       </div>
 
-      {/* Start overlay (with Generate Options BEFORE start) */}
-      {!gameStarted && (
-        <section
-          aria-label="Start game"
+      {/* Start screen: perfectly centered over the viewport, non-blocking */}
+      {!gameStarted && showStartOverlay && (
+        <div
+          aria-hidden={false}
           style={{
             position: "fixed",
-            left: 0, right: 0, top: 0, bottom: 0,
+            inset: 0,                 // full viewport
             display: "grid",
-            placeItems: "center",
-            background: "rgba(255,255,255,0.65)",
+            placeItems: "center",     // center horizontally & vertically
             zIndex: 15,
+            pointerEvents: "none",    // don't block clicks outside the box
           }}
         >
           <div
+            role="dialog"
+            aria-label="Start game"
+            // Force light theme styling here (black text) so it stays readable even in dark mode
             style={{
-              background: "rgba(255,255,255,0.97)",
+              pointerEvents: "auto",  // the box itself is interactive
+              width: 420,
+              maxWidth: "92vw",
+              maxHeight: "80vh",
+              overflow: "auto",
+              background: "#fff",     // pure white
+              color: "#000",          // force black text
               border: "1px solid #ccc",
               borderRadius: 12,
               padding: 24,
-              width: 420,
               textAlign: "center",
               boxShadow: "0 12px 24px rgba(0,0,0,0.15)",
             }}
           >
+            {/* Box controls in the top-right corner of the box */}
+            <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 8 }}>
+              <a
+                href="/"
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #aaa",
+                  background: "#fff",
+                  color: "#000",
+                }}
+              >
+                ← Back to site
+              </a>
+              <button
+                onClick={() => setShowStartOverlay(false)}
+                aria-label="Close start screen"
+                title="Close"
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #aaa",
+                  background: "#fff",
+                  color: "#000",
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
             <h2 style={{ marginTop: 0 }}>Ready to start?</h2>
 
-            <div style={{ margin: "0 0 12px", color: "#333" }}>
+            <div style={{ margin: "0 0 12px" }}>
               <div style={{ fontWeight: 800 }}>
                 Scenario: {scenarioTitle ?? "None selected"}
               </div>
@@ -363,13 +444,9 @@ export default function CourtroomGame() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-              <OptionsButton
-                label="Generate Options"
-                onSelected={() => {
-                  // refresh preview when a scenario is chosen
-                  refreshScenarioPreview();
-                }}
-              />
+              {/* The modal opened by OptionsButton should use a container class "options-modal"
+                  so our <style> override above keeps it black-on-white even in dark mode. */}
+              <OptionsButton label="Generate Options" onSelected={() => refreshScenarioPreview()} />
               <button
                 onClick={() => { localStorage.removeItem("cwa.selectedScenario"); refreshScenarioPreview(); }}
                 style={{
@@ -377,6 +454,7 @@ export default function CourtroomGame() {
                   borderRadius: 8,
                   border: "1px solid #aaa",
                   background: "#fff",
+                  color: "#000",
                   cursor: "pointer",
                 }}
               >
@@ -402,7 +480,7 @@ export default function CourtroomGame() {
               Start
             </button>
           </div>
-        </section>
+        </div>
       )}
 
       {/* Centered Alert Modal (stack top) */}
@@ -569,8 +647,6 @@ export default function CourtroomGame() {
           Save Output
         </button>
 
-        {/* Keep this if you also want access during play; can be removed if you prefer pre-start only */}
-        <OptionsButton />
       </div>
     </div>
   );
