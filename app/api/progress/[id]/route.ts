@@ -5,65 +5,58 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import Progress from "@/models/Progress";
 
-function getId(req: NextRequest): number | null {
-  const pathname = new URL(req.url).pathname;
-  const last = pathname.split("/").pop() ?? "";
-  const n = Number(last);
-  return Number.isNaN(n) ? null : n;
+// GET /api/progress/:id
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  await Progress.sync();
+  const row = await Progress.findByPk(Number(id));
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ row });
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const id = getId(req);
-    if (id == null) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-    await Progress.sync();
-    const row = await Progress.findByPk(id);
-    if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json({ row });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "GET failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+// PUT /api/progress/:id
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  await Progress.sync();
+  const row = await Progress.findByPk(Number(id));
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  type Body = {
+    finishedAt?: string | null;
+    verdictCategory?: string | null;
+    notes?: string | null;
+  };
+
+  const body: Body = await req.json().catch(() => ({} as Body));
+
+  const updates: {
+    finishedAt?: Date | null;
+    verdictCategory?: string | null;
+    notes?: string | null;
+  } = {};
+
+  if ("finishedAt" in body) {
+    updates.finishedAt =
+      typeof body.finishedAt === "string" ? new Date(body.finishedAt) : null;
   }
+  if ("verdictCategory" in body) {
+    updates.verdictCategory =
+      typeof body.verdictCategory === "string" ? body.verdictCategory : null;
+  }
+  if ("notes" in body) {
+    updates.notes = typeof body.notes === "string" ? body.notes : null;
+  }
+
+  await row.update(updates);
+  return NextResponse.json({ ok: true });
 }
 
-export async function PUT(req: NextRequest) {
-  try {
-    const id = getId(req);
-    if (id == null) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-    await Progress.sync();
-    const row = await Progress.findByPk(id);
-    if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    const body = (await req.json().catch(() => ({}))) as Partial<{
-      finishedAt: string;
-      verdictCategory: string | null;
-      notes: string | null;
-    }>;
-
-    await row.update({
-      finishedAt: body.finishedAt ? new Date(body.finishedAt) : (row.get("finishedAt") as Date | null),
-      verdictCategory: body.verdictCategory ?? (row.get("verdictCategory") as string | null),
-      notes: body.notes ?? (row.get("notes") as string | null),
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "PUT failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
-
-export async function DELETE(req: NextRequest) {
-  try {
-    const id = getId(req);
-    if (id == null) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-    await Progress.sync();
-    const row = await Progress.findByPk(id);
-    if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    await row.destroy();
-    return NextResponse.json({ ok: true });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "DELETE failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
+// DELETE /api/progress/:id
+export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  await Progress.sync();
+  const row = await Progress.findByPk(Number(id));
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  await row.destroy();
+  return NextResponse.json({ ok: true });
 }

@@ -1,33 +1,24 @@
-import { NextResponse } from "next/server";
-import { Output, ensureSynced } from "../../../models/Output";
+// app/api/output/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
-  try {
-    await ensureSynced();
-    const body = await req.json();
-    if (!body?.html) {
-      return NextResponse.json({ ok: false, error: "Missing html" }, { status: 400 });
-    }
-    const rec = await Output.create({
-      content: body.html,
-      summary: JSON.stringify(body.summary ?? {}),
-    });
-    return NextResponse.json({ ok: true, id: rec.id });
-  } catch (e) {
-    console.error("POST /api/output failed:", e);
-    return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
-  }
-}
+import { NextResponse } from "next/server";
+import Output from "@/models/Output";
+
+type OutputBody = { html: string; summary?: unknown };
 
 export async function GET() {
-  try {
-    await ensureSynced();
-    const last = await Output.findOne({ order: [["createdAt", "DESC"]] });
-    return NextResponse.json({ latest: last });
-  } catch (e) {
-    console.error("GET /api/output failed:", e);
-    return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
+  await Output.sync();
+  const rows = await Output.findAll({ order: [["id", "DESC"]], limit: 50 });
+  return NextResponse.json({ rows });
+}
+
+export async function POST(req: Request) {
+  await Output.sync();
+  const body = (await req.json().catch(() => ({}))) as Partial<OutputBody>;
+  if (!body.html || typeof body.html !== "string") {
+    return NextResponse.json({ error: "html (string) is required" }, { status: 400 });
   }
+  const rec = await Output.create({ html: body.html, summary: body.summary ?? null });
+  return NextResponse.json({ ok: true, id: rec.id });
 }
