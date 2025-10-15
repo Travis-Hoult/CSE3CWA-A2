@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+
+    "test": "cross-env NODE_ENV=test jest --runInBand",
+    "test:api": "cross-env NODE_ENV=test jest tests/api --runInBand",
+    "test:unit": "cross-env NODE_ENV=test jest tests/unit --runInBand",
+    "coverage": "cross-env NODE_ENV=test jest --coverage --runInBand"
   },
   "dependencies": {
     "bootstrap": "^5.3.7",
@@ -23,11 +28,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/supertest": "^6.0.3",
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
     "jest": "^30.2.0",
     "next": "^15.5.5",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   }
