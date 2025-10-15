@@ -1,4 +1,44 @@
 // components/CodingTaskPanel.tsx
+// -----------------------------------------------------------------------------
+// Provenance & Academic Integrity Notes
+// - Source pattern: Multi-step “task panel” based on the lectures’ examples of
+//   React state + timers (useState/useEffect) and derived state (useMemo).
+//   The stage gating (step 0..2 then complete) mirrors the classroom pattern
+//   of progressive tasks with validation before advancing.
+// - Reuse: The per-task countdown, button styles, and accessibility markers
+//   (aria-* attributes, live regions) reuse conventions already used elsewhere
+//   in this app (e.g., modals/alerts), so interaction + styling remain
+//   consistent across components.
+// - AI Assist: Helped structure comments, name things clearly, and ensure the
+//   timer/side-effect hooks are safe (idempotent resets, guards).
+// -----------------------------------------------------------------------------
+//
+// What this component does
+// - Renders three coding stages students must complete:
+//     1) Add alt text to an <img id="img1"> (accessibility).
+//     2) Provide non-empty username and password (basic validation).
+//     3) Enter CSV "0..20" exactly (simple transform/validation).
+// - Each stage has a 60s window; if time runs out, it triggers a “verdict” via
+//   onVerdict(category, verdict) to the parent, which ends the game.
+// - When all stages are completed (step === 3), we:
+//     • Notify the parent via onWin() so the main timer can stop.
+//     • Show a local “You win!” screen with PLAY AGAIN and QUIT buttons.
+//       - PLAY AGAIN: locally resets panel state and calls onRestart() if given.
+//       - QUIT: navigates to home.
+// - The parent provides:
+//     • gameStarted : external start/stop for when tasks are interactive.
+//     • nowTick     : a once-per-second tick (number) to drive countdown.
+//     • onVerdict   : called when a stage times out.
+//     • onWin       : called once when all stages complete (optional).
+//     • onRestart   : parent hook for a full game restart (optional).
+// -----------------------------------------------------------------------------
+//
+// Accessibility notes
+// - aria-live for pass/fail feedback.
+// - aria-labels on inputs/textarea to ensure screen readers can identify
+//   controls regardless of placeholder text.
+// -----------------------------------------------------------------------------
+
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -14,8 +54,8 @@ export default function CodingTaskPanel({
   gameStarted,
   nowTick,             // ⟵ increments once per second from the parent
   onVerdict,
-  onWin,               // ⟵ NEW: parent can stop main timer when tasks are done
-  onRestart,           // ⟵ NEW: optional parent-controlled restart
+  onWin,               // ⟵ informs parent to stop main timer when tasks are done
+  onRestart,           // ⟵ optional parent-controlled restart
 }: {
   gameStarted: boolean;
   nowTick: number;

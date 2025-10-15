@@ -1,4 +1,28 @@
 // app/courtroom/verdict/page.tsx
+// -----------------------------------------------------------------------------
+// Provenance & Academic Integrity Notes
+// - Source pattern: Simple client page that reads a value from `sessionStorage`
+//   on mount and renders a result. Mirrors lecture material on client
+//   components, `useEffect` for client-only storage access, and basic Next.js
+//   routing via <Link>.
+// - Reuse:
+//   • Visual style (gradient footer panel, button styles) is consistent with the
+//     rest of the app for UX and a11y consistency.
+//   • The verdict text is the same value written by the game flow in
+//     CourtroomGame (sessionStorage key: "verdict").
+// - AI Assist: Commenting only — no logic or structure was changed.
+// - External references: Next.js App Router docs for client components & <Link/>.
+// -----------------------------------------------------------------------------
+//
+// What this page does
+// - Reads the last verdict payload from `sessionStorage` (set by the game when
+//   a run ends) and displays a themed “verdict” screen.
+// - Provides a PLAY AGAIN link back to /courtroom.
+//
+// Accessibility notes
+// - Uses `aria-label` on the <main> region for screen reader context.
+// -----------------------------------------------------------------------------
+
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";

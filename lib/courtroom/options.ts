@@ -1,4 +1,30 @@
 // lib/courtroom/options.ts
+// -----------------------------------------------------------------------------
+// Provenance & Academic Integrity Notes
+// - Source pattern: Simple typed config module (types + in-memory list +
+//   lookup helper) aligns with lecture material on TypeScript domain models and
+//   separating UI from data definitions.
+// - Reuse:
+//   • The Option/Category types are imported by UI components (OptionsButton,
+//     CourtroomGame) to keep props and runtime data consistent.
+//   • BASE_OPTIONS serves as a local fallback when Lambda is absent or fails,
+//     mirroring the app’s “local → lambda → fallback” flow shown in class.
+// - AI Assist: Commenting/annotation only — no functional changes were made.
+//   The structure and values of the options remain exactly as in the project.
+// - External references: None required beyond standard TypeScript patterns
+//   discussed in lectures.
+// -----------------------------------------------------------------------------
+//
+// What this module provides
+// - Category and Option types used across the Courtroom feature.
+// - BASE_OPTIONS: a small, typed catalog of scenarios for local/demo use.
+// - getOption(id): convenience helper to fetch an option by id.
+//
+// Notes
+// - bias: lets scenarios influence alert cadence and “critical” grace period.
+// - This module is intentionally framework-agnostic (no React/Next imports).
+// -----------------------------------------------------------------------------
+
 export type Category = "accessibility" | "security-input" | "auth";
 
 export type Option = {

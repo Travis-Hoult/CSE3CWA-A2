@@ -1,4 +1,41 @@
 // components/OptionsButton.tsx
+// -----------------------------------------------------------------------------
+// Provenance & Academic Integrity Notes
+// - Source pattern: Client-side modal + fetch pattern mirrors lectures on
+//   React useState/useEffect, conditional portals, and App Router API routes.
+// - Reuse:
+//   • Uses the existing /api/options contract and the Option type from
+//     "@/lib/courtroom/options" to keep UI/data shapes consistent.
+//   • Persists the selected scenario under "cwa.selectedScenario" in localStorage,
+//     which is the same key read elsewhere in the app (e.g., CourtroomGame).
+// - AI Assist: Commenting/annotation only — no functional changes were made.
+//   Clarified error handling, provenance, and a11y notes in comments.
+// - External references: Next.js client components + createPortal usage as
+//   discussed in class and in the official React/Next.js docs.
+// -----------------------------------------------------------------------------
+//
+// What this component does
+// - Renders a “Generate Options” button that, when clicked, fetches options
+//   from /api/options (local list, Lambda, or fallback) and shows a modal.
+// - Lets the user “Use Scenario”, which saves the chosen scenario JSON to
+//   localStorage so other parts of the app can read/reflect it.
+//
+// Key interaction points
+// - load(): fetches options with no-store caching and opens the modal.
+// - selectScenario(): stores selection in localStorage and notifies parent via
+//   onSelected (so the parent can refresh its scenario preview).
+// - Modal uses createPortal to render at document.body level for proper z-index.
+//
+// Accessibility notes
+// - Modal has role="dialog" and aria-modal="true". Clicking the backdrop closes
+//   the dialog; clicks inside are stopped from propagating.
+// - Buttons and links have clear labels; inline styles keep text readable.
+//
+// Dark mode / theming
+// - The modal container includes ".options-modal" so other components can
+//   enforce black-on-white text locally if needed (see CourtroomGame’s <style>).
+// -----------------------------------------------------------------------------
+
 "use client";
 
 import { useEffect, useState } from "react";

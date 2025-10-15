@@ -1,4 +1,44 @@
 // components/CourtroomGame.tsx
+// -----------------------------------------------------------------------------
+// Provenance & Academic Integrity Notes
+// - Source pattern: Overall game loop (global countdown, periodic alerts,
+//   penalty/critical timing) follows the lecture material on React timers,
+//   derived state via useMemo, and effect cleanup for intervals/timeouts.
+// - Reuse:
+//   • Button + badge visual styles, aria labeling, and modal markup mirror the
+//     conventions already used across the app (consistency of UX and a11y).
+//   • “Save Output” button reuses the same API contract exposed by /api/output.
+// - AI Assist: Helped annotate the file, tighten comments, and ensure timers
+//   are cleared robustly (idempotent clearAllTimers) and that the verdict and
+//   navigation path are centralized (triggerVerdict). Logic is unchanged.
+// - External references: Using Next.js App Router patterns for server actions
+//   and client components (per official Next.js docs covered in class).
+// -----------------------------------------------------------------------------
+//
+// What this component does
+// - Owns the “Courtroom” gameplay shell: global 40:00 timer, alert queue,
+//   critical penalty window, start overlay, and scenario options.
+// - Coordinates with CodingTaskPanel via:
+//     • nowTick (1s global tick)
+//     • onVerdict (ending the run if a task times out)
+//     • onWin (stops timer when all coding tasks are completed)
+// - Records outcome to /api/progress and routes to /courtroom/verdict.
+// - “Save Output” persists a runtime snapshot to /api/output.
+//
+// Key interaction points
+// - refreshScenarioPreview() reads selected scenario (set by OptionsButton) and
+//   displays a badge with cadence/grace/favoured categories.
+// - startGame() applies bias timings, primes audio, clears state, and starts
+//   the surfaceNext loop which pushes alerts at the chosen cadence.
+// - triggerVerdict() centralizes: save verdict → play sound → navigate.
+// - Penalty flow: first surfaced critical sets a timeout = criticalGraceMs;
+//   if not handled within that window, triggerVerdict() fires.
+//
+// Accessibility notes
+// - aria-label on main container and dialogs; aria-live on timer badge.
+// - Start overlay is focusable, with Escape support to close without starting.
+// -----------------------------------------------------------------------------
+
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";

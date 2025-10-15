@@ -1,4 +1,30 @@
 // lib/courtroom/tasks.ts
+// -----------------------------------------------------------------------------
+// Provenance & Academic Integrity Notes
+// - Source pattern: A typed, in-memory catalog of “alerts/tasks” (id, text,
+//   critical flag, category, optional verdict) follows lecture content on
+//   modeling domain data with TypeScript types and keeping UI separate from
+//   data/config.
+// - Reuse:
+//   • Imported by CourtroomGame to seed the alert queue and drive the critical
+//     penalty window and verdict text.
+//   • Categories are shared with other modules (options) to bias/sort tasks.
+// - AI Assist: Commenting/annotation only. No functional changes to the list,
+//   types, or values. 
+// - External references: None required; this is a local config module per the
+//   patterns used in class.
+// -----------------------------------------------------------------------------
+//
+// What this module provides
+// - Category and Task types used to type-check task data across the game.
+// - tasks: the definitive list of “alerts” surfaced during play, mixing
+//   CRITICAL items (with a verdict if ignored) and NOTICE items (non-blocking).
+//
+// Notes
+// - verdict is only present for critical tasks and is used when time expires.
+// - Additional domains (e.g., "db-security") are included to increase variety.
+// -----------------------------------------------------------------------------
+
 export type Category = "accessibility" | "security-input" | "auth" | "db-security" | "notice";
 export type Task = {
   id: string;
