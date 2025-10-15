@@ -13,15 +13,27 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+
+    /* Add Jest/Node typings so TS knows about test globals and Supertest types */
+    "types": ["jest", "node"],
+    /* (Optional) If you add any custom *.d.ts files under ./types, this picks them up */
+    "typeRoots": ["./types", "./node_modules/@types"],
+
     "plugins": [
-      {
-        "name": "next"
-      }
+      { "name": "next" }
     ],
     "paths": {
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    /* Ensure Jest config / setup files are picked up if you add them */
+    "jest.config.ts",
+    "jest.setup.ts"
+  ],
   "exclude": ["node_modules"]
 }
